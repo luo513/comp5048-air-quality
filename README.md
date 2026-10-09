@@ -2,6 +2,10 @@
 
 An interactive Dash application for exploring the UCI Air Quality dataset with parallel coordinates, time filters, and selectable colour encoding.
 
+## Live application
+
+https://comp5048-air-quality.onrender.com/
+
 ## Requirements
 
 - Python 3.11 or later
