@@ -68,7 +68,8 @@ h1 { margin: 0; font-size: clamp(30px, 4vw, 46px); letter-spacing: -.035em; }
 .chart-controls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; max-width: 920px; padding: 4px 8px 0; }
 .chart-note { margin: -4px 12px 14px; color: var(--muted); font-size: 13px; }
 .linked-grid { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(330px, .8fr); gap: 16px; margin-top: 16px; }
-.parallel-panel, .time-panel { min-width: 0; padding: 4px; }
+.parallel-panel, .time-panel, .profile-panel { min-width: 0; padding: 4px; }
+.supporting-grid { display: grid; gap: 16px; min-width: 0; }
 
 .method-note { margin-top: 18px; padding: 20px 22px; background: #eaf3fb; border-left: 4px solid var(--blue); border-radius: 4px 12px 12px 4px; }
 .method-note h2 { margin: 0 0 8px; font-size: 17px; }

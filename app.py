@@ -202,6 +202,51 @@ def build_time_distribution(frame: pd.DataFrame, chosen_ids: set[str], grain: st
     return figure
 
 
+def build_attribute_profile(frame: pd.DataFrame, chosen_ids: set[str]) -> go.Figure:
+    if not chosen_ids:
+        return empty_figure("Select a candidate group in the projection to compare its attribute profile.")
+
+    selected = frame[frame["row_id"].isin(chosen_ids)]
+    rows = []
+    for attribute in NUMERIC_ATTRIBUTES:
+        population = frame[attribute].dropna()
+        group_values = selected[attribute].dropna()
+        if population.empty or group_values.empty:
+            continue
+        group_median = float(group_values.median())
+        percentile = float((population <= group_median).mean() * 100)
+        rows.append(
+            {
+                "attribute": ATTRIBUTE_LABELS[attribute],
+                "percentile": percentile,
+                "direction": "Above typical" if percentile >= 50 else "Below typical",
+            }
+        )
+
+    if not rows:
+        return empty_figure("The selected group has no comparable attribute values.")
+
+    profile = pd.DataFrame(rows).sort_values("percentile")
+    figure = px.bar(
+        profile,
+        x="percentile",
+        y="attribute",
+        orientation="h",
+        color="direction",
+        color_discrete_map={"Above typical": "#D95F59", "Below typical": "#2F80ED"},
+        template=PLOT_TEMPLATE,
+        labels={"percentile": "Selected-group median percentile", "attribute": ""},
+    )
+    figure.add_vline(x=50, line_dash="dash", line_color="#7B8794")
+    figure.update_xaxes(range=[0, 100], ticksuffix="th", dtick=25)
+    figure.update_layout(
+        title="Which attributes distinguish the selected group?",
+        legend_title_text="",
+        margin={"l": 35, "r": 20, "t": 65, "b": 45},
+    )
+    return figure
+
+
 app = Dash(__name__)
 server = app.server
 app.title = "Air Quality Visual Analytics"
@@ -326,7 +371,13 @@ app.layout = html.Main(
         html.Section(
             [
                 html.Div(dcc.Graph(id="parallel-coordinates", config={"displaylogo": False}), className="panel parallel-panel"),
-                html.Div(dcc.Graph(id="time-distribution", config={"displaylogo": False}), className="panel time-panel"),
+                html.Div(
+                    [
+                        html.Div(dcc.Graph(id="time-distribution", config={"displaylogo": False}), className="panel time-panel"),
+                        html.Div(dcc.Graph(id="attribute-profile", config={"displaylogo": False}), className="panel profile-panel"),
+                    ],
+                    className="supporting-grid",
+                ),
             ],
             className="linked-grid",
         ),
@@ -336,8 +387,9 @@ app.layout = html.Main(
                 html.P(
                     "Each line in the parallel coordinates represents one hour or one daily average. "
                     "Similar line paths indicate similar multivariate profiles. The time chart shows when "
-                    "the currently selected observations occur. Values coded as −200 are treated as missing "
-                    "and are never imputed."
+                    "the currently selected observations occur. The attribute profile positions each selected-group "
+                    "median within the filtered population: values near 100 are unusually high and values near 0 "
+                    "are unusually low. Values coded as −200 are treated as missing and are never imputed."
                 ),
             ],
             className="method-note",
@@ -350,6 +402,7 @@ app.layout = html.Main(
     Output("projection", "figure"),
     Output("parallel-coordinates", "figure"),
     Output("time-distribution", "figure"),
+    Output("attribute-profile", "figure"),
     Output("filtered-count", "children"),
     Output("selected-count", "children"),
     Output("complete-count", "children"),
@@ -378,6 +431,7 @@ def update_views(
     scatter = build_scatter(frame, x_attribute, y_attribute, colour_attribute, chosen_ids)
     parallel, complete = build_parallel(frame, chosen_ids)
     time_distribution = build_time_distribution(frame, chosen_ids, grain)
+    attribute_profile = build_attribute_profile(frame, chosen_ids)
 
     if frame.empty:
         date_text = "No data"
@@ -388,6 +442,7 @@ def update_views(
         scatter,
         parallel,
         time_distribution,
+        attribute_profile,
         f"{len(frame):,}",
         f"{len(chosen_ids):,}" if chosen_ids else "All",
         f"{len(complete):,}",
