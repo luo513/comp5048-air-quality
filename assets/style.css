@@ -66,7 +66,20 @@ h1 { margin: 0; font-size: clamp(30px, 4vw, 46px); letter-spacing: -.035em; }
 
 .projection-panel { padding: 18px 18px 8px; }
 .chart-controls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; max-width: 920px; padding: 4px 8px 0; }
-.chart-note { margin: -4px 12px 14px; color: var(--muted); font-size: 13px; }
+.chart-actions { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin: -4px 12px 14px; }
+.chart-note { margin: 0; color: var(--muted); font-size: 13px; }
+.clear-button {
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  background: #fff;
+  border: 1px solid #9fb3c8;
+  border-radius: 7px;
+  color: #243b53;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+}
+.clear-button:hover { background: #edf4fb; border-color: #627d98; }
 .linked-grid { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(330px, .8fr); gap: 16px; margin-top: 16px; }
 .parallel-panel, .time-panel, .profile-panel { min-width: 0; padding: 4px; }
 .supporting-grid { display: grid; gap: 16px; min-width: 0; }

@@ -361,9 +361,15 @@ app.layout = html.Main(
                     className="chart-controls",
                 ),
                 dcc.Graph(id="projection", config={"displaylogo": False, "modeBarButtonsToAdd": ["select2d", "lasso2d"]}),
-                html.P(
-                    "Drag around a dense or visually separated region. Double-click the plot to clear the selection.",
-                    className="chart-note",
+                html.Div(
+                    [
+                        html.P(
+                            "Drag around a dense or visually separated region, then inspect the linked views.",
+                            className="chart-note",
+                        ),
+                        html.Button("Clear selection", id="clear-selection", n_clicks=0, className="clear-button"),
+                    ],
+                    className="chart-actions",
                 ),
             ],
             className="panel projection-panel",
@@ -467,6 +473,15 @@ def explain_hour_filter(grain: str) -> str:
     if grain == "daily":
         return "Daily values are averages calculated from the selected hours."
     return "Only individual hourly observations within the selected range are shown."
+
+
+@app.callback(
+    Output("projection", "selectedData"),
+    Input("clear-selection", "n_clicks"),
+    prevent_initial_call=True,
+)
+def clear_projection_selection(_n_clicks: int) -> None:
+    return None
 
 
 if __name__ == "__main__":
