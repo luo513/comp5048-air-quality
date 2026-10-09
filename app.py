@@ -6,7 +6,7 @@ from pathlib import Path
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from dash import Dash, Input, Output, ctx, dcc, html
+from dash import ALL, Dash, Input, Output, State, ctx, dcc, html, no_update
 
 from data_pipeline import SELECTED_ATTRIBUTES
 
@@ -31,6 +31,7 @@ HOUR_PRESETS = {
     "preset-midday": [12, 15],
     "preset-evening": [17, 20],
 }
+GROUP_COLOURS = ["#1B9E77", "#D95F02", "#7570B3", "#E7298A", "#66A61E", "#E6AB02"]
 
 
 def load_data() -> pd.DataFrame:
@@ -107,34 +108,61 @@ def build_scatter(
     colour_attribute: str,
     chosen_ids: set[str],
     selection_revision: int,
+    saved_groups: list[dict],
 ) -> go.Figure:
     plotted = frame.dropna(subset=[x_attribute, y_attribute, colour_attribute]).copy()
     if plotted.empty:
         return empty_figure("No observations match the current filters.")
 
     plotted["selected"] = plotted["row_id"].isin(chosen_ids)
-    figure = px.scatter(
-        plotted,
-        x=x_attribute,
-        y=y_attribute,
-        color=colour_attribute,
-        custom_data=["row_id", "DateTime"],
-        color_continuous_scale="Viridis",
-        labels=ATTRIBUTE_LABELS,
-        template=PLOT_TEMPLATE,
-        render_mode="webgl",
-    )
+    active_groups = [group for group in saved_groups if group.get("ids")]
+    if active_groups:
+        plotted["saved_group"] = "Ungrouped"
+        colour_map = {"Ungrouped": "#B8C2CC"}
+        group_order = ["Ungrouped"]
+        for group in active_groups:
+            name = str(group["name"])
+            plotted.loc[plotted["row_id"].isin(set(group["ids"])), "saved_group"] = name
+            colour_map[name] = group["colour"]
+            group_order.append(name)
+        figure = px.scatter(
+            plotted,
+            x=x_attribute,
+            y=y_attribute,
+            color="saved_group",
+            custom_data=["row_id", "DateTime"],
+            color_discrete_map=colour_map,
+            category_orders={"saved_group": group_order},
+            labels={**ATTRIBUTE_LABELS, "saved_group": "Saved group"},
+            template=PLOT_TEMPLATE,
+            render_mode="webgl",
+        )
+    else:
+        figure = px.scatter(
+            plotted,
+            x=x_attribute,
+            y=y_attribute,
+            color=colour_attribute,
+            custom_data=["row_id", "DateTime"],
+            color_continuous_scale="Viridis",
+            labels=ATTRIBUTE_LABELS,
+            template=PLOT_TEMPLATE,
+            render_mode="webgl",
+        )
     figure.update_traces(
         marker={"size": 7, "opacity": 0.62, "line": {"width": 0}},
         selected={"marker": {"size": 10, "opacity": 1, "color": "#102A43"}},
         unselected={"marker": {"opacity": 0.16}},
     )
-    if chosen_ids:
-        figure.update_traces(selectedpoints=[
-            index for index, value in enumerate(plotted["selected"].tolist()) if value
-        ])
-    else:
-        figure.update_traces(selectedpoints=None)
+    for trace in figure.data:
+        if chosen_ids:
+            trace.selectedpoints = [
+                index
+                for index, customdata in enumerate(trace.customdata)
+                if str(customdata[0]) in chosen_ids
+            ]
+        else:
+            trace.selectedpoints = None
     figure.update_layout(
         title="Projection view — drag a box or lasso around a candidate group",
         dragmode="lasso",
@@ -263,6 +291,8 @@ server = app.server
 app.title = "Air Quality Visual Analytics"
 app.layout = html.Main(
     [
+        dcc.Store(id="saved-groups", storage_type="session", data=[]),
+        dcc.Download(id="download-groups"),
         html.Header(
             [
                 html.P("INTERACTIVE EXPLORATION", className="eyebrow"),
@@ -378,10 +408,36 @@ app.layout = html.Main(
                             "Drag around a dense or visually separated region, then inspect the linked views.",
                             className="chart-note",
                         ),
-                        html.Button("Clear selection", id="clear-selection", n_clicks=0, className="clear-button"),
+                        html.Div(
+                            [
+                                dcc.Input(
+                                    id="group-name",
+                                    type="text",
+                                    placeholder="Group name (optional)",
+                                    className="group-name-input",
+                                ),
+                                html.Button("Save as group", id="save-group", n_clicks=0, className="primary-button"),
+                                html.Button("Clear selection", id="clear-selection", n_clicks=0, className="clear-button"),
+                            ],
+                            className="selection-buttons",
+                        ),
                     ],
                     className="chart-actions",
                 ),
+                html.Div(
+                    [
+                        html.Div(id="saved-group-list", className="saved-group-list"),
+                        html.Div(
+                            [
+                                html.Button("Download groups.csv", id="download-groups-button", n_clicks=0, className="clear-button"),
+                                html.Button("Remove all groups", id="remove-all-groups", n_clicks=0, className="danger-button"),
+                            ],
+                            className="group-file-actions",
+                        ),
+                    ],
+                    className="group-manager",
+                ),
+                html.P(id="group-status", className="group-status"),
             ],
             className="panel projection-panel",
         ),
@@ -432,6 +488,7 @@ app.layout = html.Main(
     Input("colour", "value"),
     Input("projection", "selectedData"),
     Input("clear-selection", "n_clicks"),
+    Input("saved-groups", "data"),
 )
 def update_views(
     months: list[str],
@@ -442,6 +499,7 @@ def update_views(
     colour_attribute: str,
     selected_data: dict | None,
     clear_clicks: int,
+    saved_groups: list[dict] | None,
 ):
     frame = prepare_data(months, hours, grain)
     chosen_ids = set() if ctx.triggered_id == "clear-selection" else selected_ids(selected_data)
@@ -454,6 +512,7 @@ def update_views(
         colour_attribute,
         chosen_ids,
         clear_clicks or 0,
+        saved_groups or [],
     )
     parallel, complete = build_parallel(frame, chosen_ids)
     time_distribution = build_time_distribution(frame, chosen_ids, grain)
@@ -502,6 +561,119 @@ def explain_hour_filter(grain: str) -> str:
 )
 def clear_projection_selection(_n_clicks: int) -> None:
     return None
+
+
+@app.callback(
+    Output("saved-groups", "data"),
+    Output("group-name", "value"),
+    Output("group-status", "children"),
+    Input("save-group", "n_clicks"),
+    Input("remove-all-groups", "n_clicks"),
+    Input({"type": "remove-group", "index": ALL}, "n_clicks"),
+    State("projection", "selectedData"),
+    State("group-name", "value"),
+    State("saved-groups", "data"),
+    prevent_initial_call=True,
+)
+def manage_groups(
+    _save_clicks: int,
+    _remove_all_clicks: int,
+    _remove_clicks: list[int],
+    selected_data: dict | None,
+    requested_name: str | None,
+    saved_groups: list[dict] | None,
+):
+    groups = list(saved_groups or [])
+    trigger = ctx.triggered_id
+
+    if trigger == "remove-all-groups":
+        return [], "", "All saved groups were removed."
+
+    if isinstance(trigger, dict) and trigger.get("type") == "remove-group":
+        index = int(trigger["index"])
+        if 0 <= index < len(groups):
+            removed = groups.pop(index)
+            return groups, no_update, f"{removed['name']} was removed."
+        return no_update, no_update, no_update
+
+    ids = sorted(selected_ids(selected_data))
+    if not ids:
+        return no_update, no_update, "Select points in the projection before saving a group."
+
+    existing_ids = {row_id for group in groups for row_id in group.get("ids", [])}
+    ids = [row_id for row_id in ids if row_id not in existing_ids]
+    if not ids:
+        return no_update, no_update, "Every selected observation is already in a saved group."
+
+    next_number = 1
+    existing_names = {str(group["name"]).casefold() for group in groups}
+    while f"group {next_number}" in existing_names:
+        next_number += 1
+    default_name = f"Group {next_number}"
+    name = (requested_name or "").strip() or default_name
+    if name.casefold() in existing_names:
+        return no_update, no_update, f'A group named "{name}" already exists.'
+
+    colour = GROUP_COLOURS[len(groups) % len(GROUP_COLOURS)]
+    groups.append({"name": name, "colour": colour, "ids": ids})
+    return groups, "", f"Saved {len(ids):,} observations as {name}. Clear the selection to see its group colour."
+
+
+@app.callback(Output("saved-group-list", "children"), Input("saved-groups", "data"))
+def show_saved_groups(saved_groups: list[dict] | None):
+    groups = saved_groups or []
+    if not groups:
+        return html.P("No groups saved yet.", className="empty-groups")
+    return [
+        html.Div(
+            [
+                html.Span(className="group-swatch", style={"backgroundColor": group["colour"]}),
+                html.Strong(group["name"]),
+                html.Span(f"{len(group.get('ids', [])):,} observations", className="group-count"),
+                html.Button(
+                    "Remove",
+                    id={"type": "remove-group", "index": index},
+                    n_clicks=0,
+                    className="remove-group-button",
+                ),
+            ],
+            className="saved-group-item",
+        )
+        for index, group in enumerate(groups)
+    ]
+
+
+@app.callback(
+    Output("download-groups", "data"),
+    Input("download-groups-button", "n_clicks"),
+    State("saved-groups", "data"),
+    prevent_initial_call=True,
+)
+def download_saved_groups(_n_clicks: int, saved_groups: list[dict] | None):
+    groups = saved_groups or []
+    if not groups:
+        return no_update
+
+    hourly_dates = df.set_index("row_id")["DateTime"].astype(str).to_dict()
+    records = []
+    for group in groups:
+        for row_id in group.get("ids", []):
+            if row_id in hourly_dates:
+                date_time = hourly_dates[row_id]
+                date = date_time[:10]
+            else:
+                date = row_id[:10]
+                date_time = row_id[:10]
+            records.append(
+                {
+                    "date": date,
+                    "group": group["name"],
+                    "observation_id": row_id,
+                    "datetime": date_time,
+                }
+            )
+    export = pd.DataFrame(records).sort_values(["group", "datetime"])
+    return dcc.send_data_frame(export.to_csv, "groups.csv", index=False)
 
 
 if __name__ == "__main__":
