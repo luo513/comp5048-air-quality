@@ -640,8 +640,9 @@ def slider_bounds(frame: pd.DataFrame, attribute: str) -> tuple[float, float, fl
     Output("helper-x-label", "children"), Output("helper-y-label", "children"),
     Input("months", "value"), Input("hours", "value"), Input("grain", "value"),
     Input("x-attribute", "value"), Input("y-attribute", "value"),
+    Input("clear-selection", "n_clicks"),
 )
-def configure_range_helper(months, hours, grain, x_attribute, y_attribute):
+def configure_range_helper(months, hours, grain, x_attribute, y_attribute, _clear_clicks):
     frame = prepare_data(months, hours, grain)
     x_min, x_max, x_step = slider_bounds(frame, x_attribute)
     y_min, y_max, y_step = slider_bounds(frame, y_attribute)
