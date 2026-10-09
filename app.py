@@ -32,6 +32,12 @@ HOUR_PRESETS = {
     "preset-evening": [17, 20],
 }
 GROUP_COLOURS = ["#1B9E77", "#D95F02", "#7570B3", "#E7298A", "#66A61E", "#E6AB02"]
+ANALYSIS_SCENARIOS = {
+    "scenario-pollution": ("T", "CO(GT)", "NOx(GT)", "Pollution peaks"),
+    "scenario-humidity": ("RH", "NO2(GT)", "AH", "Humidity effect"),
+    "scenario-sensors": ("CO(GT)", "PT08.S1(CO)", "C6H6(GT)", "Sensor consistency"),
+    "scenario-weather": ("T", "RH", "CO(GT)", "Weather and pollution"),
+}
 
 
 def load_data() -> pd.DataFrame:
@@ -307,62 +313,88 @@ app.layout = html.Main(
         ),
         html.Section(
             [
-                html.Div(
+                html.Div([html.Span("1"), html.Strong("Choose a question"), html.Small("Use a recommended view")], className="guide-step active-step"),
+                html.Div([html.Span("2"), html.Strong("Circle a pattern"), html.Small("Box or lasso a local region")], className="guide-step"),
+                html.Div([html.Span("3"), html.Strong("Save and compare"), html.Small("Confirm it in the linked views")], className="guide-step"),
+            ],
+            className="workflow-guide",
+        ),
+        html.Section(
+            [
+                html.Button(
                     [
-                        html.Label("Observation level"),
-                        dcc.RadioItems(
-                            id="grain",
-                            options=[
-                                {"label": " Daily", "value": "daily"},
-                                {"label": " Hourly", "value": "hourly"},
+                        html.Div([html.Strong("Pollution peaks"), html.Small("Temperature × CO, coloured by NOx")]),
+                    ],
+                    id="scenario-pollution",
+                    n_clicks=0,
+                    className="scenario-card selected-scenario",
+                ),
+                html.Button([html.Strong("Humidity effect"), html.Small("Humidity × NO₂")], id="scenario-humidity", n_clicks=0, className="scenario-card"),
+                html.Button([html.Strong("Sensor consistency"), html.Small("Reference × sensor")], id="scenario-sensors", n_clicks=0, className="scenario-card"),
+                html.Button([html.Strong("Weather and pollution"), html.Small("Temperature × humidity")], id="scenario-weather", n_clicks=0, className="scenario-card"),
+            ],
+            className="scenario-grid",
+        ),
+        html.P(["Current view: ", html.Strong("Pollution peaks", id="scenario-label")], className="scenario-label"),
+        html.Details(
+            [
+                html.Summary("Advanced filters and manual attribute choices"),
+                html.Section(
+                    [
+                        html.Div(
+                            [
+                                html.Label("Observation level"),
+                                dcc.RadioItems(
+                                    id="grain",
+                                    options=[{"label": " Daily", "value": "daily"}, {"label": " Hourly", "value": "hourly"}],
+                                    value="daily",
+                                    inline=True,
+                                    className="radio-row",
+                                ),
                             ],
-                            value="daily",
-                            inline=True,
-                            className="radio-row",
-                        ),
-                    ],
-                    className="control",
-                ),
-                html.Div(
-                    [
-                        html.Label("Months"),
-                        dcc.Dropdown(
-                            id="months",
-                            options=month_options,
-                            value=[ALL_MONTHS],
-                            multi=True,
-                            placeholder="Select months",
-                        ),
-                    ],
-                    className="control control-wide",
-                ),
-                html.Div(
-                    [
-                        html.Label("Hours included"),
-                        dcc.RangeSlider(
-                            id="hours",
-                            min=0,
-                            max=23,
-                            step=1,
-                            value=[0, 23],
-                            marks={0: "00", 6: "06", 12: "12", 18: "18", 23: "23"},
-                            tooltip={"placement": "bottom", "always_visible": False},
+                            className="control",
                         ),
                         html.Div(
                             [
-                                html.Button("All day 00–23", id="preset-all", n_clicks=0),
-                                html.Button("Morning peak 07–10", id="preset-morning", n_clicks=0),
-                                html.Button("Midday 12–15", id="preset-midday", n_clicks=0),
-                                html.Button("Evening peak 17–20", id="preset-evening", n_clicks=0),
+                                html.Label("Months"),
+                                dcc.Dropdown(id="months", options=month_options, value=[ALL_MONTHS], multi=True, placeholder="Select months"),
                             ],
-                            className="preset-buttons",
+                            className="control control-wide",
                         ),
-                        html.P(id="hours-help", className="control-help"),
+                        html.Div(
+                            [
+                                html.Label("Hours included"),
+                                dcc.RangeSlider(
+                                    id="hours", min=0, max=23, step=1, value=[0, 23],
+                                    marks={0: "00", 6: "06", 12: "12", 18: "18", 23: "23"},
+                                    tooltip={"placement": "bottom", "always_visible": False},
+                                ),
+                                html.Div(
+                                    [
+                                        html.Button("All day 00–23", id="preset-all", n_clicks=0),
+                                        html.Button("Morning peak 07–10", id="preset-morning", n_clicks=0),
+                                        html.Button("Midday 12–15", id="preset-midday", n_clicks=0),
+                                        html.Button("Evening peak 17–20", id="preset-evening", n_clicks=0),
+                                    ],
+                                    className="preset-buttons",
+                                ),
+                                html.P(id="hours-help", className="control-help"),
+                            ],
+                            className="control control-wide",
+                        ),
                     ],
-                    className="control control-wide",
+                    className="controls",
+                ),
+                html.Div(
+                    [
+                        html.Div([html.Label("X axis"), dcc.Dropdown(id="x-attribute", options=attribute_options, value="T", clearable=False)], className="mini-control"),
+                        html.Div([html.Label("Y axis"), dcc.Dropdown(id="y-attribute", options=attribute_options, value="CO(GT)", clearable=False)], className="mini-control"),
+                        html.Div([html.Label("Colour"), dcc.Dropdown(id="colour", options=attribute_options, value="NOx(GT)", clearable=False)], className="mini-control"),
+                    ],
+                    className="chart-controls advanced-chart-controls",
                 ),
             ],
-            className="controls panel",
+            className="advanced-panel panel",
         ),
         html.Section(
             [
@@ -375,32 +407,6 @@ app.layout = html.Main(
         ),
         html.Section(
             [
-                html.Div(
-                    [
-                        html.Div(
-                            [
-                                html.Label("X axis"),
-                                dcc.Dropdown(id="x-attribute", options=attribute_options, value="T", clearable=False),
-                            ],
-                            className="mini-control",
-                        ),
-                        html.Div(
-                            [
-                                html.Label("Y axis"),
-                                dcc.Dropdown(id="y-attribute", options=attribute_options, value="CO(GT)", clearable=False),
-                            ],
-                            className="mini-control",
-                        ),
-                        html.Div(
-                            [
-                                html.Label("Colour"),
-                                dcc.Dropdown(id="colour", options=attribute_options, value="NOx(GT)", clearable=False),
-                            ],
-                            className="mini-control",
-                        ),
-                    ],
-                    className="chart-controls",
-                ),
                 dcc.Graph(id="projection", config={"displaylogo": False, "modeBarButtonsToAdd": ["select2d", "lasso2d"]}),
                 html.Div(
                     [
@@ -424,6 +430,7 @@ app.layout = html.Main(
                     ],
                     className="chart-actions",
                 ),
+                html.P(id="selection-guidance", className="selection-guidance"),
                 html.Div(
                     [
                         html.Div(id="saved-group-list", className="saved-group-list"),
@@ -533,6 +540,39 @@ def update_views(
         f"{len(complete):,}",
         date_text,
     )
+
+
+@app.callback(
+    Output("x-attribute", "value"),
+    Output("y-attribute", "value"),
+    Output("colour", "value"),
+    Output("scenario-label", "children"),
+    Output("scenario-pollution", "className"),
+    Output("scenario-humidity", "className"),
+    Output("scenario-sensors", "className"),
+    Output("scenario-weather", "className"),
+    Input("scenario-pollution", "n_clicks"),
+    Input("scenario-humidity", "n_clicks"),
+    Input("scenario-sensors", "n_clicks"),
+    Input("scenario-weather", "n_clicks"),
+    prevent_initial_call=True,
+)
+def choose_scenario(*_clicks: int):
+    selected_scenario = ctx.triggered_id
+    x_attribute, y_attribute, colour_attribute, label = ANALYSIS_SCENARIOS[selected_scenario]
+    classes = [
+        "scenario-card selected-scenario" if scenario_id == selected_scenario else "scenario-card"
+        for scenario_id in ANALYSIS_SCENARIOS
+    ]
+    return x_attribute, y_attribute, colour_attribute, label, *classes
+
+
+@app.callback(Output("selection-guidance", "children"), Input("projection", "selectedData"))
+def explain_selection(selected_data: dict | None) -> str:
+    count = len(selected_ids(selected_data))
+    if not count:
+        return "Next: use Box Select or Lasso Select to circle one local pattern — not the whole chart."
+    return f"{count:,} observations selected. Check the linked views below; save only if they share a meaningful profile."
 
 
 @app.callback(
