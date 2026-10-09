@@ -106,6 +106,7 @@ def build_scatter(
     y_attribute: str,
     colour_attribute: str,
     chosen_ids: set[str],
+    selection_revision: int,
 ) -> go.Figure:
     plotted = frame.dropna(subset=[x_attribute, y_attribute, colour_attribute]).copy()
     if plotted.empty:
@@ -132,12 +133,16 @@ def build_scatter(
         figure.update_traces(selectedpoints=[
             index for index, value in enumerate(plotted["selected"].tolist()) if value
         ])
+    else:
+        figure.update_traces(selectedpoints=[])
     figure.update_layout(
         title="Projection view — drag a box or lasso around a candidate group",
         dragmode="lasso",
         margin={"l": 55, "r": 25, "t": 70, "b": 50},
         coloraxis_colorbar={"title": ATTRIBUTE_LABELS[colour_attribute]},
         uirevision="scatter-controls",
+        selectionrevision=str(selection_revision),
+        selections=[],
     )
     return figure
 
@@ -426,6 +431,7 @@ app.layout = html.Main(
     Input("y-attribute", "value"),
     Input("colour", "value"),
     Input("projection", "selectedData"),
+    Input("clear-selection", "n_clicks"),
 )
 def update_views(
     months: list[str],
@@ -435,12 +441,20 @@ def update_views(
     y_attribute: str,
     colour_attribute: str,
     selected_data: dict | None,
+    clear_clicks: int,
 ):
     frame = prepare_data(months, hours, grain)
-    chosen_ids = selected_ids(selected_data)
+    chosen_ids = set() if ctx.triggered_id == "clear-selection" else selected_ids(selected_data)
     chosen_ids &= set(frame["row_id"].astype(str))
 
-    scatter = build_scatter(frame, x_attribute, y_attribute, colour_attribute, chosen_ids)
+    scatter = build_scatter(
+        frame,
+        x_attribute,
+        y_attribute,
+        colour_attribute,
+        chosen_ids,
+        clear_clicks or 0,
+    )
     parallel, complete = build_parallel(frame, chosen_ids)
     time_distribution = build_time_distribution(frame, chosen_ids, grain)
     attribute_profile = build_attribute_profile(frame, chosen_ids)
