@@ -134,7 +134,7 @@ def build_scatter(
             index for index, value in enumerate(plotted["selected"].tolist()) if value
         ])
     else:
-        figure.update_traces(selectedpoints=[])
+        figure.update_traces(selectedpoints=None)
     figure.update_layout(
         title="Projection view — drag a box or lasso around a candidate group",
         dragmode="lasso",
