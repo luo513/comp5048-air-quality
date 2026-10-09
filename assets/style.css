@@ -118,6 +118,14 @@ h1 { margin: 0; font-size: clamp(30px, 4vw, 46px); letter-spacing: -.035em; }
 .remove-group-button { padding: 3px 6px; background: transparent; border: 0; color: #9b2c2c; cursor: pointer; font-size: 11px; font-weight: 700; }
 .group-status { min-height: 18px; margin: 6px 12px 12px; color: #334e68; font-size: 12px; font-weight: 600; }
 .selection-guidance { margin: 0 12px 12px; padding: 10px 12px; background: #eef6ff; border-left: 3px solid var(--blue); border-radius: 4px 8px 8px 4px; color: #244f70; font-size: 13px; font-weight: 700; }
+.range-helper { margin: 0 12px 12px; background: #f8fbfe; border: 1px solid #b8d5ec; border-radius: 10px; }
+.range-helper summary { padding: 12px 14px; color: #244f70; cursor: pointer; font-size: 13px; font-weight: 800; }
+.range-helper[open] summary { border-bottom: 1px solid #d9eaf7; }
+.range-helper-body { display: grid; grid-template-columns: 1fr 1fr auto; gap: 22px; align-items: end; padding: 16px 18px 20px; }
+.range-control { min-width: 0; padding-bottom: 10px; }
+.range-control label { display: block; margin-bottom: 22px; color: #334e68; font-size: 12px; font-weight: 800; text-transform: uppercase; }
+.range-action { min-width: 225px; }
+.range-count { max-width: 260px; min-height: 34px; margin: 0 0 8px; color: var(--muted); font-size: 12px; line-height: 1.4; }
 .linked-grid { display: grid; gap: 16px; margin-top: 16px; }
 .parallel-panel, .time-panel, .profile-panel { min-width: 0; padding: 4px; }
 .supporting-grid { display: grid; grid-template-columns: minmax(0, .9fr) minmax(500px, 1.1fr); gap: 16px; min-width: 0; }
@@ -129,6 +137,8 @@ h1 { margin: 0; font-size: clamp(30px, 4vw, 46px); letter-spacing: -.035em; }
 @media (max-width: 980px) {
   .controls, .metrics { grid-template-columns: 1fr 1fr; }
   .scenario-grid { grid-template-columns: 1fr 1fr; }
+  .range-helper-body { grid-template-columns: 1fr 1fr; }
+  .range-action { grid-column: 1 / -1; }
   .supporting-grid { grid-template-columns: 1fr; }
   .control-wide, .method-note { grid-column: 1 / -1; }
 }
@@ -138,6 +148,8 @@ h1 { margin: 0; font-size: clamp(30px, 4vw, 46px); letter-spacing: -.035em; }
   .controls, .metrics, .chart-controls, .supporting-grid { grid-template-columns: 1fr; }
   .control-wide, .method-note { grid-column: auto; }
   .workflow-guide, .scenario-grid { grid-template-columns: 1fr; }
+  .range-helper-body { grid-template-columns: 1fr; }
+  .range-action { grid-column: auto; }
   .chart-actions, .group-manager { align-items: stretch; flex-direction: column; }
   .group-name-input { width: 100%; }
 }

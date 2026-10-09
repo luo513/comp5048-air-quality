@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import math
 from pathlib import Path
 
 import pandas as pd
@@ -157,7 +158,7 @@ def build_scatter(
         )
     figure.update_traces(
         marker={"size": 7, "opacity": 0.62, "line": {"width": 0}},
-        selected={"marker": {"size": 10, "opacity": 1, "color": "#102A43"}},
+        selected={"marker": {"size": 10, "opacity": 1}},
         unselected={"marker": {"opacity": 0.16}},
     )
     for trace in figure.data:
@@ -408,6 +409,39 @@ app.layout = html.Main(
         html.Section(
             [
                 dcc.Graph(id="projection", config={"displaylogo": False, "modeBarButtonsToAdd": ["select2d", "lasso2d"]}),
+                html.Details(
+                    [
+                        html.Summary("Easier selection with exact ranges (recommended)"),
+                        html.Div(
+                            [
+                                html.Div(
+                                    [
+                                        html.Label(id="helper-x-label"),
+                                        dcc.RangeSlider(id="helper-x-range", min=0, max=1, value=[0, 1], marks={}, dots=False, tooltip={"placement": "bottom", "always_visible": True}),
+                                    ],
+                                    className="range-control",
+                                ),
+                                html.Div(
+                                    [
+                                        html.Label(id="helper-y-label"),
+                                        dcc.RangeSlider(id="helper-y-range", min=0, max=1, value=[0, 1], marks={}, dots=False, tooltip={"placement": "bottom", "always_visible": True}),
+                                    ],
+                                    className="range-control",
+                                ),
+                                html.Div(
+                                    [
+                                        html.P(id="range-selection-count", className="range-count"),
+                                        html.Button("Preview selection", id="preview-range-selection", n_clicks=0, className="primary-button"),
+                                    ],
+                                    className="range-action",
+                                ),
+                            ],
+                            className="range-helper-body",
+                        ),
+                    ],
+                    open=True,
+                    className="range-helper",
+                ),
                 html.Div(
                     [
                         html.P(
@@ -575,6 +609,74 @@ def explain_selection(selected_data: dict | None) -> str:
     return f"{count:,} observations selected. Check the linked views below; save only if they share a meaningful profile."
 
 
+def slider_bounds(frame: pd.DataFrame, attribute: str) -> tuple[float, float, float]:
+    values = frame[attribute].dropna()
+    if values.empty:
+        return 0.0, 1.0, 0.01
+    raw_minimum = float(values.min())
+    raw_maximum = float(values.max())
+    span = raw_maximum - raw_minimum
+    if span >= 1000:
+        step = 10.0
+    elif span >= 100:
+        step = 1.0
+    elif span >= 10:
+        step = 0.1
+    elif span >= 1:
+        step = 0.05
+    else:
+        step = 0.01
+    minimum = math.floor(raw_minimum / step) * step
+    maximum = math.ceil(raw_maximum / step) * step
+    if minimum == maximum:
+        maximum = minimum + step
+    return minimum, maximum, step
+
+
+@app.callback(
+    Output("helper-x-range", "min"), Output("helper-x-range", "max"),
+    Output("helper-x-range", "step"), Output("helper-x-range", "value"),
+    Output("helper-y-range", "min"), Output("helper-y-range", "max"),
+    Output("helper-y-range", "step"), Output("helper-y-range", "value"),
+    Output("helper-x-label", "children"), Output("helper-y-label", "children"),
+    Input("months", "value"), Input("hours", "value"), Input("grain", "value"),
+    Input("x-attribute", "value"), Input("y-attribute", "value"),
+)
+def configure_range_helper(months, hours, grain, x_attribute, y_attribute):
+    frame = prepare_data(months, hours, grain)
+    x_min, x_max, x_step = slider_bounds(frame, x_attribute)
+    y_min, y_max, y_step = slider_bounds(frame, y_attribute)
+    return (
+        x_min, x_max, x_step, [x_min, x_max],
+        y_min, y_max, y_step, [y_min, y_max],
+        f"X range — {ATTRIBUTE_LABELS[x_attribute]}",
+        f"Y range — {ATTRIBUTE_LABELS[y_attribute]}",
+    )
+
+
+@app.callback(
+    Output("range-selection-count", "children"),
+    Input("helper-x-range", "value"), Input("helper-y-range", "value"),
+    Input("months", "value"), Input("hours", "value"), Input("grain", "value"),
+    Input("x-attribute", "value"), Input("y-attribute", "value"), Input("colour", "value"),
+)
+def describe_range_selection(x_range, y_range, months, hours, grain, x_attribute, y_attribute, colour_attribute):
+    frame = prepare_data(months, hours, grain).dropna(subset=[x_attribute, y_attribute, colour_attribute])
+    count = int(
+        (frame[x_attribute].between(x_range[0], x_range[1], inclusive="both")
+         & frame[y_attribute].between(y_range[0], y_range[1], inclusive="both")).sum()
+    )
+    if count == 0:
+        assessment = "No observations — widen a range."
+    elif count > 100:
+        assessment = "Broad selection — narrow one or both ranges."
+    elif count < 10:
+        assessment = "Very small selection — widen it slightly."
+    else:
+        assessment = "Useful size for inspection."
+    return f"{count:,} observations in this rectangle. {assessment}"
+
+
 @app.callback(
     Output("hours", "value"),
     Input("preset-all", "n_clicks"),
@@ -597,10 +699,29 @@ def explain_hour_filter(grain: str) -> str:
 @app.callback(
     Output("projection", "selectedData"),
     Input("clear-selection", "n_clicks"),
+    Input("preview-range-selection", "n_clicks"),
+    State("helper-x-range", "value"), State("helper-y-range", "value"),
+    State("months", "value"), State("hours", "value"), State("grain", "value"),
+    State("x-attribute", "value"), State("y-attribute", "value"), State("colour", "value"),
     prevent_initial_call=True,
 )
-def clear_projection_selection(_n_clicks: int) -> None:
-    return None
+def set_projection_selection(
+    _clear_clicks, _preview_clicks, x_range, y_range, months, hours, grain,
+    x_attribute, y_attribute, colour_attribute,
+):
+    if ctx.triggered_id == "clear-selection":
+        return None
+    frame = prepare_data(months, hours, grain).dropna(subset=[x_attribute, y_attribute, colour_attribute])
+    chosen = frame[
+        frame[x_attribute].between(x_range[0], x_range[1], inclusive="both")
+        & frame[y_attribute].between(y_range[0], y_range[1], inclusive="both")
+    ]
+    return {
+        "points": [
+            {"x": row[x_attribute], "y": row[y_attribute], "customdata": [str(row["row_id"]), str(row["DateTime"])]}
+            for _, row in chosen.iterrows()
+        ]
+    }
 
 
 @app.callback(
