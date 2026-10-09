@@ -227,22 +227,28 @@ def build_attribute_profile(frame: pd.DataFrame, chosen_ids: set[str]) -> go.Fig
         return empty_figure("The selected group has no comparable attribute values.")
 
     profile = pd.DataFrame(rows).sort_values("percentile")
-    figure = px.bar(
-        profile,
-        x="percentile",
-        y="attribute",
-        orientation="h",
-        color="direction",
-        color_discrete_map={"Above typical": "#D95F59", "Below typical": "#2F80ED"},
-        template=PLOT_TEMPLATE,
-        labels={"percentile": "Selected-group median percentile", "attribute": ""},
+    colours = ["#D95F59" if value >= 50 else "#2F80ED" for value in profile["percentile"]]
+    figure = go.Figure(
+        go.Bar(
+            x=profile["percentile"],
+            y=profile["attribute"],
+            orientation="h",
+            marker_color=colours,
+            text=[f"{value:.0f}th" for value in profile["percentile"]],
+            textposition="outside",
+            cliponaxis=False,
+            customdata=profile["direction"],
+            hovertemplate="%{y}<br>%{x:.1f}th percentile<br>%{customdata}<extra></extra>",
+        )
     )
     figure.add_vline(x=50, line_dash="dash", line_color="#7B8794")
-    figure.update_xaxes(range=[0, 100], ticksuffix="th", dtick=25)
+    figure.update_xaxes(range=[0, 108], ticksuffix="th", dtick=25, title="Percentile within filtered data")
     figure.update_layout(
-        title="Which attributes distinguish the selected group?",
-        legend_title_text="",
-        margin={"l": 35, "r": 20, "t": 65, "b": 45},
+        title="Selected group attribute profile",
+        template=PLOT_TEMPLATE,
+        height=440,
+        showlegend=False,
+        margin={"l": 40, "r": 55, "t": 65, "b": 55},
     )
     return figure
 

@@ -80,21 +80,22 @@ h1 { margin: 0; font-size: clamp(30px, 4vw, 46px); letter-spacing: -.035em; }
   font-weight: 800;
 }
 .clear-button:hover { background: #edf4fb; border-color: #627d98; }
-.linked-grid { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(330px, .8fr); gap: 16px; margin-top: 16px; }
+.linked-grid { display: grid; gap: 16px; margin-top: 16px; }
 .parallel-panel, .time-panel, .profile-panel { min-width: 0; padding: 4px; }
-.supporting-grid { display: grid; gap: 16px; min-width: 0; }
+.supporting-grid { display: grid; grid-template-columns: minmax(0, .9fr) minmax(500px, 1.1fr); gap: 16px; min-width: 0; }
 
 .method-note { margin-top: 18px; padding: 20px 22px; background: #eaf3fb; border-left: 4px solid var(--blue); border-radius: 4px 12px 12px 4px; }
 .method-note h2 { margin: 0 0 8px; font-size: 17px; }
 .method-note p { margin: 0; color: #334e68; line-height: 1.55; }
 
 @media (max-width: 980px) {
-  .controls, .metrics, .linked-grid { grid-template-columns: 1fr 1fr; }
-  .control-wide, .parallel-panel, .method-note { grid-column: 1 / -1; }
+  .controls, .metrics { grid-template-columns: 1fr 1fr; }
+  .supporting-grid { grid-template-columns: 1fr; }
+  .control-wide, .method-note { grid-column: 1 / -1; }
 }
 
 @media (max-width: 680px) {
   main { padding: 24px 14px 40px; }
-  .controls, .metrics, .chart-controls, .linked-grid { grid-template-columns: 1fr; }
-  .control-wide, .parallel-panel, .method-note { grid-column: auto; }
+  .controls, .metrics, .chart-controls, .supporting-grid { grid-template-columns: 1fr; }
+  .control-wide, .method-note { grid-column: auto; }
 }
