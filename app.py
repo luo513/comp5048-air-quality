@@ -41,14 +41,18 @@ def load_data() -> pd.DataFrame:
 
 df = load_data()
 month_values = sorted(df["Month"].unique())
-month_options = [{"label": value, "value": value} for value in month_values]
+ALL_MONTHS = "__ALL_MONTHS__"
+month_options = [
+    {"label": "All months", "value": ALL_MONTHS},
+    *[{"label": value, "value": value} for value in month_values],
+]
 attribute_options = [
     {"label": ATTRIBUTE_LABELS[name], "value": name} for name in NUMERIC_ATTRIBUTES
 ]
 
 
 def prepare_data(months: list[str], hours: list[int], grain: str) -> pd.DataFrame:
-    selected_months = months or []
+    selected_months = month_values if not months or ALL_MONTHS in months else months
     filtered = df[
         df["Month"].isin(selected_months)
         & df["Hour"].between(hours[0], hours[1], inclusive="both")
@@ -239,8 +243,9 @@ app.layout = html.Main(
                         dcc.Dropdown(
                             id="months",
                             options=month_options,
-                            value=month_values,
+                            value=[ALL_MONTHS],
                             multi=True,
+                            placeholder="Select months",
                         ),
                     ],
                     className="control control-wide",
