@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.idea/
+.vscode/
+
+# Local source and planning files that are not needed for deployment
+AirQualityUCI.csv
+AirQualityUCI.xlsx
+air+quality.zip
+A2-小组计划表.xlsx
+inspect_group_plan.py

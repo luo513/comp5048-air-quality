@@ -1,0 +1,45 @@
+body {
+  margin: 0;
+  background: #f5f7fa;
+  color: #17202a;
+  font-family: Arial, sans-serif;
+}
+
+main {
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 28px;
+}
+
+h1 {
+  margin-bottom: 6px;
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: 2fr 2fr 1fr;
+  gap: 18px;
+  margin: 24px 0 14px;
+}
+
+.control {
+  min-width: 0;
+}
+
+.control label {
+  display: block;
+  margin-bottom: 7px;
+  font-weight: 700;
+}
+
+.coverage,
+.note {
+  margin: 12px 0;
+  color: #46515c;
+}
+
+@media (max-width: 850px) {
+  .controls {
+    grid-template-columns: 1fr;
+  }
+}
