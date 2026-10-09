@@ -42,6 +42,20 @@ h1 { margin: 0; font-size: clamp(30px, 4vw, 46px); letter-spacing: -.035em; }
   text-transform: uppercase;
 }
 .radio-row label { margin-right: 18px; font-size: 14px; font-weight: 600; letter-spacing: 0; text-transform: none; }
+.preset-buttons { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 15px; }
+.preset-buttons button {
+  padding: 7px 10px;
+  background: #edf4fb;
+  border: 1px solid #bcccdc;
+  border-radius: 7px;
+  color: #243b53;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+.preset-buttons button:hover { background: #d9eaf7; border-color: #7b9eb8; }
+.preset-buttons button:active { transform: translateY(1px); }
+.control-help { margin: 10px 0 0; color: var(--muted); font-size: 12px; line-height: 1.4; }
 
 .metrics { display: grid; grid-template-columns: 1fr 1fr 1fr 1.7fr; gap: 14px; margin: 16px 0; }
 .metric-card { min-height: 86px; padding: 16px 18px; background: var(--navy); border-radius: 12px; color: white; }

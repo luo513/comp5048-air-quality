@@ -6,7 +6,7 @@ from pathlib import Path
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from dash import Dash, Input, Output, dcc, html
+from dash import Dash, Input, Output, ctx, dcc, html
 
 from data_pipeline import SELECTED_ATTRIBUTES
 
@@ -25,6 +25,12 @@ ATTRIBUTE_LABELS = {
     "AH": "Absolute humidity",
 }
 PLOT_TEMPLATE = "plotly_white"
+HOUR_PRESETS = {
+    "preset-all": [0, 23],
+    "preset-morning": [7, 10],
+    "preset-midday": [12, 15],
+    "preset-evening": [17, 20],
+}
 
 
 def load_data() -> pd.DataFrame:
@@ -213,7 +219,7 @@ app.layout = html.Main(
             [
                 html.Div(
                     [
-                        html.Label("Time grain"),
+                        html.Label("Observation level"),
                         dcc.RadioItems(
                             id="grain",
                             options=[
@@ -241,7 +247,7 @@ app.layout = html.Main(
                 ),
                 html.Div(
                     [
-                        html.Label("Hours"),
+                        html.Label("Hours included"),
                         dcc.RangeSlider(
                             id="hours",
                             min=0,
@@ -251,6 +257,16 @@ app.layout = html.Main(
                             marks={0: "00", 6: "06", 12: "12", 18: "18", 23: "23"},
                             tooltip={"placement": "bottom", "always_visible": False},
                         ),
+                        html.Div(
+                            [
+                                html.Button("All day 00–23", id="preset-all", n_clicks=0),
+                                html.Button("Morning peak 07–10", id="preset-morning", n_clicks=0),
+                                html.Button("Midday 12–15", id="preset-midday", n_clicks=0),
+                                html.Button("Evening peak 17–20", id="preset-evening", n_clicks=0),
+                            ],
+                            className="preset-buttons",
+                        ),
+                        html.P(id="hours-help", className="control-help"),
                     ],
                     className="control control-wide",
                 ),
@@ -372,6 +388,25 @@ def update_views(
         f"{len(complete):,}",
         date_text,
     )
+
+
+@app.callback(
+    Output("hours", "value"),
+    Input("preset-all", "n_clicks"),
+    Input("preset-morning", "n_clicks"),
+    Input("preset-midday", "n_clicks"),
+    Input("preset-evening", "n_clicks"),
+    prevent_initial_call=True,
+)
+def apply_hour_preset(*_clicks: int) -> list[int]:
+    return HOUR_PRESETS.get(ctx.triggered_id, [0, 23])
+
+
+@app.callback(Output("hours-help", "children"), Input("grain", "value"))
+def explain_hour_filter(grain: str) -> str:
+    if grain == "daily":
+        return "Daily values are averages calculated from the selected hours."
+    return "Only individual hourly observations within the selected range are shown."
 
 
 if __name__ == "__main__":
