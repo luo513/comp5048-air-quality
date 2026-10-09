@@ -417,14 +417,14 @@ app.layout = html.Main(
                                 html.Div(
                                     [
                                         html.Label(id="helper-x-label"),
-                                        dcc.RangeSlider(id="helper-x-range", min=0, max=1, value=[0, 1], marks={}, dots=False, tooltip={"placement": "bottom", "always_visible": True}),
+                                        dcc.RangeSlider(id="helper-x-range", min=0, max=1, value=[0, 1], marks={0: "0", 1: "1"}, dots=False, tooltip={"placement": "bottom", "always_visible": True}),
                                     ],
                                     className="range-control",
                                 ),
                                 html.Div(
                                     [
                                         html.Label(id="helper-y-label"),
-                                        dcc.RangeSlider(id="helper-y-range", min=0, max=1, value=[0, 1], marks={}, dots=False, tooltip={"placement": "bottom", "always_visible": True}),
+                                        dcc.RangeSlider(id="helper-y-range", min=0, max=1, value=[0, 1], marks={0: "0", 1: "1"}, dots=False, tooltip={"placement": "bottom", "always_visible": True}),
                                     ],
                                     className="range-control",
                                 ),
@@ -635,9 +635,9 @@ def slider_bounds(frame: pd.DataFrame, attribute: str) -> tuple[float, float, fl
 
 @app.callback(
     Output("helper-x-range", "min"), Output("helper-x-range", "max"),
-    Output("helper-x-range", "step"), Output("helper-x-range", "value"),
+    Output("helper-x-range", "step"), Output("helper-x-range", "marks"), Output("helper-x-range", "value"),
     Output("helper-y-range", "min"), Output("helper-y-range", "max"),
-    Output("helper-y-range", "step"), Output("helper-y-range", "value"),
+    Output("helper-y-range", "step"), Output("helper-y-range", "marks"), Output("helper-y-range", "value"),
     Output("helper-x-label", "children"), Output("helper-y-label", "children"),
     Input("months", "value"), Input("hours", "value"), Input("grain", "value"),
     Input("x-attribute", "value"), Input("y-attribute", "value"),
@@ -646,9 +646,11 @@ def configure_range_helper(months, hours, grain, x_attribute, y_attribute):
     frame = prepare_data(months, hours, grain)
     x_min, x_max, x_step = slider_bounds(frame, x_attribute)
     y_min, y_max, y_step = slider_bounds(frame, y_attribute)
+    x_marks = {x_min: f"{x_min:g}", x_max: f"{x_max:g}"}
+    y_marks = {y_min: f"{y_min:g}", y_max: f"{y_max:g}"}
     return (
-        x_min, x_max, x_step, [x_min, x_max],
-        y_min, y_max, y_step, [y_min, y_max],
+        x_min, x_max, x_step, x_marks, [x_min, x_max],
+        y_min, y_max, y_step, y_marks, [y_min, y_max],
         f"X range — {ATTRIBUTE_LABELS[x_attribute]}",
         f"Y range — {ATTRIBUTE_LABELS[y_attribute]}",
     )
