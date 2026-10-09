@@ -411,7 +411,7 @@ app.layout = html.Main(
                 dcc.Graph(id="projection", config={"displaylogo": False, "modeBarButtonsToAdd": ["select2d", "lasso2d"]}),
                 html.Details(
                     [
-                        html.Summary("Easier selection with exact ranges (recommended)"),
+                        html.Summary("Select by value range"),
                         html.Div(
                             [
                                 html.Div(
@@ -439,7 +439,6 @@ app.layout = html.Main(
                             className="range-helper-body",
                         ),
                     ],
-                    open=True,
                     className="range-helper",
                 ),
                 html.Div(
