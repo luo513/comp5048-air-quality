@@ -29,8 +29,8 @@ app.layout = html.Main(
     [
         html.H1("Air Quality Visual Analytics"),
         html.P(
-            "Task 1 workspace: visually inspect groups using the same selected attributes. "
-            "No clustering algorithm is used."
+            "Explore air-quality observations across a consistent set of sensor, pollutant, "
+            "and environmental attributes."
         ),
         html.Div(
             [
@@ -101,7 +101,7 @@ def update_parallel_coordinates(months: list[str], hours: list[int], colour: str
         dimensions=NUMERIC_ATTRIBUTES,
         color=colour,
         color_continuous_scale=px.colors.diverging.Tealrose,
-        title="Task 1 — parallel coordinates for visual grouping",
+        title="Parallel coordinates overview",
     )
     figure.update_layout(margin={"l": 55, "r": 55, "t": 75, "b": 40}, height=650)
 

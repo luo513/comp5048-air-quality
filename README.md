@@ -1,29 +1,35 @@
-# COMP5048 Assignment 2 — A workspace
+# Air Quality Visual Analytics
 
-This workspace implements A's initial responsibilities: reproducible data cleaning, the Dash application shell, and the Task 1 parallel-coordinates view.
+An interactive Dash application for exploring the UCI Air Quality dataset with parallel coordinates, time filters, and selectable colour encoding.
 
-## Data policy
+## Requirements
 
-- The source file is never overwritten.
-- Every `-200` value in the selected numeric attributes becomes a missing value.
-- Missing values are not imputed.
-- The same selected attributes are defined once in `data_pipeline.py` and reused by the application.
-- `Hour`, `Weekday`, and `Month` are derived from `DateTime` for filtering and colouring; they do not replace the selected attributes.
+- Python 3.11 or later
+- Dash
+- Plotly
+- Pandas
+- Gunicorn for deployment
 
-## Run
+Install the Python packages with:
 
-```powershell
-& 'D:\anaconda3\envs\comp5310\python.exe' data_pipeline.py
-& 'D:\anaconda3\envs\comp5310\python.exe' -m pip install -r requirements.txt
-& 'D:\anaconda3\envs\comp5310\python.exe' app.py
+```bash
+python -m pip install -r requirements.txt
 ```
 
-Open the local address printed by Dash. Brush ranges directly on parallel-coordinate axes to identify candidate visual groups. The application does not run a clustering algorithm.
+## Run locally
 
-## Public deployment
+The cleaned dataset is included in `data/`. Start the application with:
 
-The repository includes `render.yaml`. Push the project to GitHub, create a Render Web Service from that repository, and Render can use the included build and start commands. The deployed service receives a public `onrender.com` address that can be shared with the group.
+```bash
+python app.py
+```
 
-## Current scope
+Then open `http://127.0.0.1:8050/` in a browser.
 
-The first working view provides month and hour filters, a colour-variable control, missing-data coverage text, and parallel-axis brushing. Linked T2/T3 views will be connected to the same cleaned dataset later.
+To rebuild the cleaned dataset from `AirQualityUCI.csv`, place the source file in the project directory and run:
+
+```bash
+python data_pipeline.py
+```
+
+Values coded as `-200` are treated as missing values and are not imputed.
