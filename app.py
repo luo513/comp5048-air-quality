@@ -155,6 +155,7 @@ def build_scatter(
     chosen_ids: set[str],
     selection_revision: int,
     saved_groups: list[dict],
+    hidden_groups: list[str] | None = None,
 ) -> go.Figure:
     plotted = frame.dropna(subset=[x_attribute, y_attribute, colour_attribute]).copy()
     if plotted.empty:
@@ -195,6 +196,11 @@ def build_scatter(
             template=PLOT_TEMPLATE,
             render_mode="webgl",
         )
+
+    hidden = set(hidden_groups or [])
+    for trace in figure.data:
+        if trace.name in hidden:
+            trace.visible = "legendonly"
     figure.update_traces(
         marker={"size": 7, "opacity": 0.62, "line": {"width": 0}},
         selected={"marker": {"size": 10, "opacity": 1}},
@@ -338,6 +344,7 @@ app.title = "Air Quality Visual Analytics"
 app.layout = html.Main(
     [
         dcc.Store(id="saved-groups", storage_type="memory", data=default_saved_groups()),
+        dcc.Store(id="hidden-groups", storage_type="memory", data=[]),
         dcc.Download(id="download-groups"),
         html.Header(
             [
@@ -568,6 +575,7 @@ app.layout = html.Main(
     Input("projection", "selectedData"),
     Input("clear-selection", "n_clicks"),
     Input("saved-groups", "data"),
+    Input("hidden-groups", "data"),
 )
 def update_views(
     months: list[str],
@@ -579,6 +587,7 @@ def update_views(
     selected_data: dict | None,
     clear_clicks: int,
     saved_groups: list[dict] | None,
+    hidden_groups: list[str] | None,
 ):
     frame = prepare_data(months, hours, grain)
     chosen_ids = set() if ctx.triggered_id == "clear-selection" else selected_ids(selected_data)
@@ -592,6 +601,7 @@ def update_views(
         chosen_ids,
         clear_clicks or 0,
         with_default_groups(saved_groups),
+        hidden_groups,
     )
     parallel, complete = build_parallel(frame, chosen_ids)
     time_distribution = build_time_distribution(frame, chosen_ids, grain)
@@ -823,7 +833,10 @@ def manage_groups(
     return groups, "", f"Saved {len(ids):,} observations as {name}. Clear the selection to see its group colour."
 
 
-@app.callback(Output("saved-group-list", "children"), Input("saved-groups", "data"))
+@app.callback(
+    Output("saved-group-list", "children"),
+    Input("saved-groups", "data"),
+)
 def show_saved_groups(saved_groups: list[dict] | None):
     groups = with_default_groups(saved_groups)
     if not groups:
@@ -834,6 +847,13 @@ def show_saved_groups(saved_groups: list[dict] | None):
                 html.Span(className="group-swatch", style={"backgroundColor": group["colour"]}),
                 html.Strong(group["name"]),
                 html.Span(f"{len(group.get('ids', [])):,} observations", className="group-count"),
+                html.Button(
+                    "Show / Hide",
+                    id={"type": "toggle-group", "index": group["name"]},
+                    n_clicks=0,
+                    className="visibility-group-button",
+                    title="Temporarily show or hide this group in the chart",
+                ),
                 (
                     html.Span("Fixed", className="group-count")
                     if group["name"] in {"High pollution", "Hot low-pollution"}
@@ -849,6 +869,25 @@ def show_saved_groups(saved_groups: list[dict] | None):
         )
         for index, group in enumerate(groups)
     ]
+
+
+@app.callback(
+    Output("hidden-groups", "data"),
+    Input({"type": "toggle-group", "index": ALL}, "n_clicks"),
+    State("hidden-groups", "data"),
+    prevent_initial_call=True,
+)
+def toggle_group_visibility(_clicks: list[int], hidden_groups: list[str] | None):
+    trigger = ctx.triggered_id
+    if not isinstance(trigger, dict):
+        return no_update
+    name = str(trigger.get("index", ""))
+    hidden = set(hidden_groups or [])
+    if name in hidden:
+        hidden.remove(name)
+    else:
+        hidden.add(name)
+    return sorted(hidden)
 
 
 @app.callback(
