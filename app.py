@@ -899,6 +899,8 @@ def show_saved_groups(saved_groups: list[dict] | None):
     prevent_initial_call=True,
 )
 def toggle_group_visibility(_clicks: list[int], hidden_groups: list[str] | None):
+    if not any(_clicks or []):
+        return no_update
     trigger = ctx.triggered_id
     if not isinstance(trigger, dict):
         return no_update
