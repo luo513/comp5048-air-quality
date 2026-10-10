@@ -518,7 +518,7 @@ app.layout = html.Main(
                         html.Div(
                             [
                                 html.Button("Download groups.csv", id="download-groups-button", n_clicks=0, className="clear-button"),
-                                html.Button("Remove all groups", id="remove-all-groups", n_clicks=0, className="danger-button"),
+                                html.Button("Remove added groups", id="remove-all-groups", n_clicks=0, className="danger-button"),
                             ],
                             className="group-file-actions",
                         ),
