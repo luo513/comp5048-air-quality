@@ -110,6 +110,18 @@ def default_saved_groups() -> list[dict]:
     ]
 
 
+def with_default_groups(saved_groups: list[dict] | None) -> list[dict]:
+    """Keep the two validated groups present in every browser/session state."""
+    defaults = default_saved_groups()
+    default_names = {str(group["name"]) for group in defaults}
+    extras = [
+        group
+        for group in (saved_groups or [])
+        if str(group.get("name", "")) not in default_names
+    ]
+    return defaults + extras
+
+
 def selected_ids(selected_data: dict | None) -> set[str]:
     if not selected_data or not selected_data.get("points"):
         return set()
@@ -579,7 +591,7 @@ def update_views(
         colour_attribute,
         chosen_ids,
         clear_clicks or 0,
-        saved_groups or [],
+        with_default_groups(saved_groups),
     )
     parallel, complete = build_parallel(frame, chosen_ids)
     time_distribution = build_time_distribution(frame, chosen_ids, grain)
@@ -773,15 +785,17 @@ def manage_groups(
     requested_name: str | None,
     saved_groups: list[dict] | None,
 ):
-    groups = list(saved_groups or [])
+    groups = with_default_groups(saved_groups)
     trigger = ctx.triggered_id
 
     if trigger == "remove-all-groups":
-        return [], "", "All saved groups were removed."
+        return default_saved_groups(), "", "Additional groups were removed; the two validated groups were kept."
 
     if isinstance(trigger, dict) and trigger.get("type") == "remove-group":
         index = int(trigger["index"])
         if 0 <= index < len(groups):
+            if groups[index]["name"] in {"High pollution", "Hot low-pollution"}:
+                return groups, no_update, "The two validated groups are fixed and cannot be removed."
             removed = groups.pop(index)
             return groups, no_update, f"{removed['name']} was removed."
         return no_update, no_update, no_update
@@ -811,7 +825,7 @@ def manage_groups(
 
 @app.callback(Output("saved-group-list", "children"), Input("saved-groups", "data"))
 def show_saved_groups(saved_groups: list[dict] | None):
-    groups = saved_groups or []
+    groups = with_default_groups(saved_groups)
     if not groups:
         return html.P("No groups saved yet.", className="empty-groups")
     return [
@@ -820,11 +834,15 @@ def show_saved_groups(saved_groups: list[dict] | None):
                 html.Span(className="group-swatch", style={"backgroundColor": group["colour"]}),
                 html.Strong(group["name"]),
                 html.Span(f"{len(group.get('ids', [])):,} observations", className="group-count"),
-                html.Button(
-                    "Remove",
-                    id={"type": "remove-group", "index": index},
-                    n_clicks=0,
-                    className="remove-group-button",
+                (
+                    html.Span("Fixed", className="group-count")
+                    if group["name"] in {"High pollution", "Hot low-pollution"}
+                    else html.Button(
+                        "Remove",
+                        id={"type": "remove-group", "index": index},
+                        n_clicks=0,
+                        className="remove-group-button",
+                    )
                 ),
             ],
             className="saved-group-item",
@@ -840,14 +858,7 @@ def show_saved_groups(saved_groups: list[dict] | None):
     prevent_initial_call=True,
 )
 def download_saved_groups(_n_clicks: int, saved_groups: list[dict] | None):
-    # The two validated groups are part of the shared analysis, so include them
-    # even if an older browser session sends incomplete in-memory state.
-    groups_by_name = {
-        str(group["name"]): group for group in default_saved_groups()
-    }
-    for group in saved_groups or []:
-        groups_by_name[str(group["name"])] = group
-    groups = list(groups_by_name.values())
+    groups = with_default_groups(saved_groups)
     if not groups:
         return no_update
 
