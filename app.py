@@ -83,6 +83,33 @@ def prepare_data(months: list[str], hours: list[int], grain: str) -> pd.DataFram
     return filtered
 
 
+def default_saved_groups() -> list[dict]:
+    """Return the two manually validated groups used by the shared application."""
+    daily = prepare_data([ALL_MONTHS], [0, 23], "daily").dropna(
+        subset=["T", "CO(GT)", "NOx(GT)"]
+    )
+    high_pollution = daily[
+        daily["T"].between(5, 23, inclusive="both")
+        & daily["CO(GT)"].between(3, 5.65, inclusive="both")
+    ]
+    hot_low_pollution = daily[
+        daily["T"].between(25, 33, inclusive="both")
+        & daily["CO(GT)"].between(0.5, 1.7, inclusive="both")
+    ]
+    return [
+        {
+            "name": "High pollution",
+            "colour": GROUP_COLOURS[0],
+            "ids": high_pollution["row_id"].astype(str).tolist(),
+        },
+        {
+            "name": "Hot low-pollution",
+            "colour": GROUP_COLOURS[1],
+            "ids": hot_low_pollution["row_id"].astype(str).tolist(),
+        },
+    ]
+
+
 def selected_ids(selected_data: dict | None) -> set[str]:
     if not selected_data or not selected_data.get("points"):
         return set()
@@ -298,7 +325,7 @@ server = app.server
 app.title = "Air Quality Visual Analytics"
 app.layout = html.Main(
     [
-        dcc.Store(id="saved-groups", storage_type="session", data=[]),
+        dcc.Store(id="saved-groups", storage_type="memory", data=default_saved_groups()),
         dcc.Download(id="download-groups"),
         html.Header(
             [
