@@ -593,6 +593,22 @@ def update_views(
     chosen_ids = set() if ctx.triggered_id == "clear-selection" else selected_ids(selected_data)
     chosen_ids &= set(frame["row_id"].astype(str))
 
+    # When one saved group is hidden, use the remaining visible group as the
+    # focus for all linked views. A manual box/lasso selection still takes
+    # precedence when present.
+    if not chosen_ids and hidden_groups:
+        visible_groups = [
+            group
+            for group in with_default_groups(saved_groups)
+            if group["name"] not in set(hidden_groups)
+        ]
+        chosen_ids = {
+            str(row_id)
+            for group in visible_groups
+            for row_id in group.get("ids", [])
+        }
+        chosen_ids &= set(frame["row_id"].astype(str))
+
     scatter = build_scatter(
         frame,
         x_attribute,
@@ -887,6 +903,9 @@ def toggle_group_visibility(_clicks: list[int], hidden_groups: list[str] | None)
         hidden.remove(name)
     else:
         hidden.add(name)
+    fixed_names = {"High pollution", "Hot low-pollution"}
+    if fixed_names.issubset(hidden):
+        return no_update
     return sorted(hidden)
 
 
