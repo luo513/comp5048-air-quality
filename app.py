@@ -929,20 +929,16 @@ def download_saved_groups(_n_clicks: int, saved_groups: list[dict] | None):
     for group in groups:
         for row_id in group.get("ids", []):
             if row_id in hourly_dates:
-                date_time = hourly_dates[row_id]
-                date = date_time[:10]
+                date = hourly_dates[row_id][:10]
             else:
                 date = row_id[:10]
-                date_time = row_id[:10]
             records.append(
                 {
                     "date": date,
                     "group": group["name"],
-                    "observation_id": row_id,
-                    "datetime": date_time,
                 }
             )
-    export = pd.DataFrame(records).sort_values(["group", "datetime"])
+    export = pd.DataFrame(records).sort_values(["group", "date"])
     return dcc.send_data_frame(export.to_csv, "groups.csv", index=False)
 
 
