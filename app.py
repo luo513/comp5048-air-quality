@@ -227,8 +227,8 @@ def build_scatter(
     return figure
 
 
-def build_parallel(frame: pd.DataFrame, chosen_ids: set[str]) -> tuple[go.Figure, pd.DataFrame]:
-    focus = frame[frame["row_id"].isin(chosen_ids)].copy() if chosen_ids else frame.copy()
+def build_parallel(frame: pd.DataFrame, chosen_ids: set[str] | None) -> tuple[go.Figure, pd.DataFrame]:
+    focus = frame.copy() if chosen_ids is None else frame[frame["row_id"].isin(chosen_ids)].copy()
     plotted = focus.dropna(subset=NUMERIC_ATTRIBUTES)
     if plotted.empty:
         return empty_figure("The selected observations do not have complete values across all axes."), plotted
@@ -254,7 +254,7 @@ def build_parallel(frame: pd.DataFrame, chosen_ids: set[str]) -> tuple[go.Figure
             tickfont={"size": 10, "color": "#52606D"},
         )
     )
-    title = "Parallel coordinates — selected group" if chosen_ids else "Parallel coordinates — filtered observations"
+    title = "Parallel coordinates — selected group" if chosen_ids is not None else "Parallel coordinates — filtered observations"
     figure.update_layout(
         title=title,
         template=PLOT_TEMPLATE,
@@ -264,8 +264,8 @@ def build_parallel(frame: pd.DataFrame, chosen_ids: set[str]) -> tuple[go.Figure
     return figure, plotted
 
 
-def build_time_distribution(frame: pd.DataFrame, chosen_ids: set[str], grain: str) -> go.Figure:
-    focus = frame[frame["row_id"].isin(chosen_ids)].copy() if chosen_ids else frame.copy()
+def build_time_distribution(frame: pd.DataFrame, chosen_ids: set[str] | None, grain: str) -> go.Figure:
+    focus = frame.copy() if chosen_ids is None else frame[frame["row_id"].isin(chosen_ids)].copy()
     if focus.empty:
         return empty_figure("No observations to summarise.")
 
@@ -287,9 +287,11 @@ def build_time_distribution(frame: pd.DataFrame, chosen_ids: set[str], grain: st
     return figure
 
 
-def build_attribute_profile(frame: pd.DataFrame, chosen_ids: set[str]) -> go.Figure:
-    if not chosen_ids:
+def build_attribute_profile(frame: pd.DataFrame, chosen_ids: set[str] | None) -> go.Figure:
+    if chosen_ids is None:
         return empty_figure("Select a candidate group in the projection to compare its attribute profile.")
+    if not chosen_ids:
+        return empty_figure("Both saved groups are hidden. Show a group or make a new selection.")
 
     selected = frame[frame["row_id"].isin(chosen_ids)]
     rows = []
@@ -590,38 +592,41 @@ def update_views(
     hidden_groups: list[str] | None,
 ):
     frame = prepare_data(months, hours, grain)
-    chosen_ids = set() if ctx.triggered_id == "clear-selection" else selected_ids(selected_data)
-    chosen_ids &= set(frame["row_id"].astype(str))
+    manual_ids = set() if ctx.triggered_id == "clear-selection" else selected_ids(selected_data)
+    manual_ids &= set(frame["row_id"].astype(str))
+    linked_ids: set[str] | None = manual_ids if manual_ids else None
 
     # When one saved group is hidden, use the remaining visible group as the
     # focus for all linked views. A manual box/lasso selection still takes
     # precedence when present.
-    if not chosen_ids and hidden_groups:
+    if not manual_ids and hidden_groups:
         visible_groups = [
             group
             for group in with_default_groups(saved_groups)
             if group["name"] not in set(hidden_groups)
         ]
-        chosen_ids = {
+        linked_ids = {
             str(row_id)
             for group in visible_groups
             for row_id in group.get("ids", [])
         }
-        chosen_ids &= set(frame["row_id"].astype(str))
+        linked_ids &= set(frame["row_id"].astype(str))
+
+    scatter_focus_ids = linked_ids or set()
 
     scatter = build_scatter(
         frame,
         x_attribute,
         y_attribute,
         colour_attribute,
-        chosen_ids,
+        scatter_focus_ids,
         clear_clicks or 0,
         with_default_groups(saved_groups),
         hidden_groups,
     )
-    parallel, complete = build_parallel(frame, chosen_ids)
-    time_distribution = build_time_distribution(frame, chosen_ids, grain)
-    attribute_profile = build_attribute_profile(frame, chosen_ids)
+    parallel, complete = build_parallel(frame, linked_ids)
+    time_distribution = build_time_distribution(frame, linked_ids, grain)
+    attribute_profile = build_attribute_profile(frame, linked_ids)
 
     if frame.empty:
         date_text = "No data"
@@ -634,7 +639,7 @@ def update_views(
         time_distribution,
         attribute_profile,
         f"{len(frame):,}",
-        f"{len(chosen_ids):,}" if chosen_ids else "All",
+        "All" if linked_ids is None else f"{len(linked_ids):,}",
         f"{len(complete):,}",
         date_text,
     )
@@ -903,9 +908,6 @@ def toggle_group_visibility(_clicks: list[int], hidden_groups: list[str] | None)
         hidden.remove(name)
     else:
         hidden.add(name)
-    fixed_names = {"High pollution", "Hot low-pollution"}
-    if fixed_names.issubset(hidden):
-        return no_update
     return sorted(hidden)
 
 
