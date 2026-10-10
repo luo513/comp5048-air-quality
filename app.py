@@ -840,7 +840,14 @@ def show_saved_groups(saved_groups: list[dict] | None):
     prevent_initial_call=True,
 )
 def download_saved_groups(_n_clicks: int, saved_groups: list[dict] | None):
-    groups = saved_groups or []
+    # The two validated groups are part of the shared analysis, so include them
+    # even if an older browser session sends incomplete in-memory state.
+    groups_by_name = {
+        str(group["name"]): group for group in default_saved_groups()
+    }
+    for group in saved_groups or []:
+        groups_by_name[str(group["name"])] = group
+    groups = list(groups_by_name.values())
     if not groups:
         return no_update
 
